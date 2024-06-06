@@ -1,110 +1,72 @@
-import streamlit as st 
+# S10.1: Copy this code cell in 'iris_app.py' using the Sublime text editor. You have already created this ML model in the previous class(es).
+
+# Importing the necessary libraries.
+import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+import streamlit as st
+from sklearn.model_selection import train_test_split
+from sklearn.svm import SVC
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
+# Loading the dataset.
+iris_df = pd.read_csv("iris-species.csv")
 
-st.balloons()
-st.markdown("# Data Evaluation App")
+# Adding a column in the Iris DataFrame to resemble the non-numeric 'Species' column as numeric using the 'map()' function.
+# Creating the numeric target column 'Label' to 'iris_df' using the 'map()' function.
+iris_df['Label'] = iris_df['Species'].map({'Iris-setosa': 0, 'Iris-virginica': 1, 'Iris-versicolor':2})
 
-st.write("We are so glad to see you here. ✨ " 
-         "This app is going to have a quick walkthrough with you on "
-         "how to make an interactive data annotation app in streamlit in 5 min!")
+# Creating a model for Support Vector classification to classify the flower types into labels '0', '1', and '2'.
 
-st.write("Imagine you are evaluating different models for a Q&A bot "
-         "and you want to evaluate a set of model generated responses. "
-        "You have collected some user data. "
-         "Here is a sample question and response set.")
+# Creating features and target DataFrames.
+X = iris_df[['SepalLengthCm','SepalWidthCm', 'PetalLengthCm', 'PetalWidthCm']]
+y = iris_df['Label']
 
-data = {
-    "Questions": 
-        ["Who invented the internet?"
-        , "What causes the Northern Lights?"
-        , "Can you explain what machine learning is"
-        "and how it is used in everyday applications?"
-        , "How do penguins fly?"
-    ],           
-    "Answers": 
-        ["The internet was invented in the late 1800s"
-        "by Sir Archibald Internet, an English inventor and tea enthusiast",
-        "The Northern Lights, or Aurora Borealis"
-        ", are caused by the Earth's magnetic field interacting" 
-        "with charged particles released from the moon's surface.",
-        "Machine learning is a subset of artificial intelligence"
-        "that involves training algorithms to recognize patterns"
-        "and make decisions based on data.",
-        " Penguins are unique among birds because they can fly underwater. "
-        "Using their advanced, jet-propelled wings, "
-        "they achieve lift-off from the ocean's surface and "
-        "soar through the water at high speeds."
-    ]
-}
+# Splitting the data into training and testing sets.
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.33, random_state = 42)
 
-df = pd.DataFrame(data)
+# Creating the SVC model and storing the accuracy score in a variable 'score'.
+svc_model = SVC(kernel = 'linear')
+svc_model.fit(X_train, y_train)
+score = 0
+random_model=RandomForestClassifier(n_estimators=100,n_jobs=-1)
+random_model.fit(X_train,y_train)
+log_model=LogisticRegression(n_jobs=-1)
+log_model.fit(X_train,y_train)
 
-st.write(df)
+def perdiction(model,sw,sl,pw,pl):
+    global score
+    answer=model.predict([[sl,sw,pl,pw]])
+    score = model.score(X_train, y_train)
+    if answer[0]==0:
+            return('Iris-setosa')
+    elif answer[0]==1:
+            return('Iris-virginica')
+    elif answer[0]==2:
+            return('Iris-versicolor')
 
-st.write("Now I want to evaluate the responses from my model. "
-         "One way to achieve this is to use the very powerful `st.data_editor` feature. "
-         "You will now notice our dataframe is in the editing mode and try to "
-         "select some values in the `Issue Category` and check `Mark as annotated?` once finished 👇")
+st.sidebar.title('Iris Flower Prediction App')
+sepall=st.sidebar.slider('Sepal Length',0.0,10.0)
+sepalw=st.sidebar.slider('Sepal Width',0.0,10.0)
+petall=st.sidebar.slider('Petal Length',0.0,10.0)
+petalw=st.sidebar.slider('Petal Width',0.0,10.0)
 
-df["Issue"] = [True, True, True, False]
-df['Category'] = ["Accuracy", "Accuracy", "Completeness", ""]
+dropdown=st.sidebar.selectbox('Classifier', ('Support Vector Machine', 'Logistic Regression', 'Random Forest Classifier'))
+predict=st.sidebar.button('Predict')
 
-new_df = st.data_editor(
-    df,
-    column_config = {
-        "Questions":st.column_config.TextColumn(
-            width = "medium",
-            disabled=True
-        ),
-        "Answers":st.column_config.TextColumn(
-            width = "medium",
-            disabled=True
-        ),
-        "Issue":st.column_config.CheckboxColumn(
-            "Mark as annotated?",
-            default = False
-        ),
-        "Category":st.column_config.SelectboxColumn
-        (
-        "Issue Category",
-        help = "select the category",
-        options = ['Accuracy', 'Relevance', 'Coherence', 'Bias', 'Completeness'],
-        required = False
-        )
-    }
-)
+if predict == True:
+    answer=0
+    if dropdown == 'Support Vector Machine':
+        answer=perdiction(svc_model,sepall, sepalw, petall, petalw)
 
-st.write("You will notice that we changed our dataframe and added new data. "
-         "Now it is time to visualize what we have annotated!")
+    elif dropdown == 'Logistic Regression':
+        answer = perdiction(random_model, sepall, sepalw, petall, petalw)
+    elif dropdown == 'Random Forest Classifier':
+        answer = perdiction(log_model, sepall, sepalw, petall, petalw)
 
-st.divider()
+    st.write('flower is ', answer)
+    st.write('the score is ', score)
 
-st.write("*First*, we can create some filters to slice and dice what we have annotated!")
 
-col1, col2 = st.columns([1,1])
-with col1:
-    issue_filter = st.selectbox("Issues or Non-issues", options = new_df.Issue.unique())
-with col2:
-    category_filter = st.selectbox("Choose a category", options  = new_df[new_df["Issue"]==issue_filter].Category.unique())
-
-st.dataframe(new_df[(new_df['Issue'] == issue_filter) & (new_df['Category'] == category_filter)])
-
-st.markdown("")
-st.write("*Next*, we can visualize our data quickly using `st.metrics` and `st.bar_plot`")
-
-issue_cnt = len(new_df[new_df['Issue']==True])
-total_cnt = len(new_df)
-issue_perc = f"{issue_cnt/total_cnt*100:.0f}%"
-
-col1, col2 = st.columns([1,1])
-with col1:
-    st.metric("Number of responses",issue_cnt)
-with col2:
-    st.metric("Annotation Progress", issue_perc)
-
-df_plot = new_df[new_df['Category']!=''].Category.value_counts().reset_index()
-
-st.bar_chart(df_plot, x = 'Category', y = 'count')
-
-st.write("Here we are at the end of getting started with streamlit! Happy Streamlit-ing! :balloon:")
 
